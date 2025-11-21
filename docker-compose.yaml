@@ -1,0 +1,112 @@
+version: '3.7'
+
+x-zoo-service: &zoo-service
+  image: zookeeper:3.7
+  restart: always
+  networks:
+    - solr
+
+x-solr-service: &solr-service
+  image: solr:9.1
+  depends_on:
+    - zoo1
+    - zoo2
+    - zoo3
+
+services:
+
+  zoo1:
+    <<: *zoo-service
+    container_name: zoo1
+    hostname: zoo1
+    environment:
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr,conf,ruok
+      ZOO_MY_ID: 1
+    volumes:
+      - zoo1-data:/data
+      - zoo1-datalog:/datalog
+    ports:
+      - "127.0.0.1:2191:2181"
+      - "${WSL2_IP}:2191:2181"
+  zoo2:
+    <<: *zoo-service
+    container_name: zoo2
+    hostname: zoo2
+    environment:
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr,conf,ruok
+      ZOO_MY_ID: 2
+    volumes:
+      - zoo2-data:/data
+      - zoo2-datalog:/datalog
+    ports:
+      - "127.0.0.1:2192:2181"
+      - "${WSL2_IP}:2192:2181"
+  zoo3:
+    <<: *zoo-service
+    container_name: zoo3
+    hostname: zoo3
+    environment:
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181 server.2=zoo2:2888:3888;2181 server.3=zoo3:2888:3888;2181
+      ZOO_4LW_COMMANDS_WHITELIST: mntr,conf,ruok
+      ZOO_MY_ID: 3
+    volumes:
+      - zoo3-data:/data
+      - zoo3-datalog:/datalog
+    ports:
+      - "127.0.0.1:2193:2181"
+      - "${WSL2_IP}:2193:2181"
+
+  solr1:
+    <<: *solr-service
+    container_name: solr1
+    environment:
+      ZK_HOST: zoo1:2181,zoo2:2181,zoo3:2181
+      SOLR_JAVA_MEM: -Xms1g -Xmx1g -Xmn512m
+      SOLR_HOST: localhost
+      SOLR_PORT: 8981
+      SOLR_OPTS: -Dsolr.jetty.request.header.size=65535
+    volumes:
+      - solr1:/var/solr
+    ports:
+      - "127.0.0.1:8981:8981"
+    networks:
+      solr:
+         ipv4_address: 10.254.249.89
+    extra_hosts:
+      - localhost:10.254.249.90
+  solr2:
+    <<: *solr-service
+    container_name: solr2
+    environment:
+      ZK_HOST: zoo1:2181,zoo2:2181,zoo3:2181
+      SOLR_JAVA_MEM: -Xms1g -Xmx1g -Xmn512m
+      SOLR_HOST: localhost
+      SOLR_PORT: 8982
+      SOLR_OPTS: -Dsolr.jetty.request.header.size=65535
+    volumes:
+      - solr2:/var/solr
+    ports:
+      - "0.0.0.0:8982:8982"
+    networks:
+      solr:
+        ipv4_address: 10.254.249.90
+    extra_hosts:
+      - localhost:10.254.249.89
+
+networks:
+  solr:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.254.249.0/24
+volumes:
+  zoo1-data:
+  zoo1-datalog:
+  zoo2-data:
+  zoo2-datalog:
+  zoo3-data:
+  zoo3-datalog:
+  solr1:
+  solr2:
